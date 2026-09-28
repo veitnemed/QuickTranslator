@@ -375,7 +375,6 @@ def main():
             result = languages[source].get_translation(languages[target]).translate(sample)
             if not result:
                 raise SystemExit(f'Model {source}->{target} returned an empty translation')
-            print(f'{source}->{target}: {result}')
         return
     app = QApplication(sys.argv)
     app.setQuitOnLastWindowClosed(False)
