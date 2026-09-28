@@ -19,6 +19,9 @@ QApplication.setApplicationName('QuickTranslatorTest')
 from PySide6.QtCore import QSettings
 QSettings.setDefaultFormat(QSettings.Format.IniFormat)
 QSettings.setPath(QSettings.Format.IniFormat, QSettings.Scope.UserScope, settings_dir.name)
+QSettings(QSettings.Format.IniFormat, QSettings.Scope.UserScope, 'Veitnemed', 'QuickTranslator').clear()
+module.QSettings = lambda *_args: QSettings(
+    QSettings.Format.IniFormat, QSettings.Scope.UserScope, 'Veitnemed', 'QuickTranslator')
 app.setStyle('Fusion')
 app.setStyleSheet(module.STYLE)
 window = module.Window()
@@ -36,7 +39,7 @@ try:
     wait_for(lambda: window.prepared)
     window.input.setPlainText('TypeError: list indices must be integers, not str')
     wait_for(lambda: window.copyable)
-    assert window.copyable and any('\u0400' <= c <= '\u04ff' for c in window.output.toPlainText())
+    assert window.copyable and any('\u0400' <= c <= '\u04ff' for c in window.output.toPlainText()), repr((window.detail.text(), window.output.toPlainText()))
     print('EN-RU:', window.output.toPlainText(), window.detail.text())
     window.grab().save(str(root / 'preview.png'))
     window.mode.setCurrentIndex(2)
