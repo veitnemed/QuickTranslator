@@ -368,14 +368,27 @@ class Window(QMainWindow):
 
 def main():
     if '--self-test' in sys.argv:
-        import argostranslate.translate as translate
-        languages = {x.code: x for x in translate.get_installed_languages()}
-        for source, target, sample in [('en', 'ru', 'The list index must be an integer.'),
-                                      ('ru', 'en', 'Получить список пользователей')]:
-            result = languages[source].get_translation(languages[target]).translate(sample)
-            if not result:
-                raise SystemExit(f'Model {source}->{target} returned an empty translation')
-        return
+        log_path = os.environ.get('QUICKTRANSLATOR_SELF_TEST_LOG')
+        if log_path:
+            log = open(log_path, 'w', encoding='utf-8')
+            sys.stdout = log
+            sys.stderr = log
+        try:
+            import argostranslate.translate as translate
+            languages = {x.code: x for x in translate.get_installed_languages()}
+            for source, target, sample in [('en', 'ru', 'The list index must be an integer.'),
+                                          ('ru', 'en', 'Получить список пользователей')]:
+                model = languages[source].get_translation(languages[target])
+                if model is None:
+                    raise RuntimeError(f'Model {source}->{target} is not installed')
+                result = model.translate(sample)
+                if not result:
+                    raise RuntimeError(f'Model {source}->{target} returned an empty translation')
+                print(f'PASS {source}->{target}: {result}')
+        finally:
+            if log_path:
+                log.close()
+        return 0
     app = QApplication(sys.argv)
     app.setQuitOnLastWindowClosed(False)
     app.setStyle('Fusion')
@@ -403,4 +416,4 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    sys.exit(main() or 0)
