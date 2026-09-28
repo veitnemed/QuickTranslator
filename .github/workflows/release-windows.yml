@@ -1,0 +1,66 @@
+name: Build and publish Windows release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+      - name: Install build tools
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt pyinstaller==6.17.0
+      - name: Download offline EN-RU models
+        shell: pwsh
+        run: |
+          $env:ARGOS_PACKAGES_DIR = "$PWD\.build\argos_models"
+          New-Item -ItemType Directory -Force -Path $env:ARGOS_PACKAGES_DIR | Out-Null
+          @'
+          import argostranslate.package as package
+          package.update_package_index()
+          required = {('en', 'ru'), ('ru', 'en')}
+          installed = {(p.from_code, p.to_code) for p in package.get_installed_packages()}
+          for item in package.get_available_packages():
+              pair = (item.from_code, item.to_code)
+              if pair in required - installed:
+                  item.install()
+                  installed.add(pair)
+          if not required.issubset(installed):
+              raise SystemExit(f'Missing offline models: {required - installed}')
+          '@ | Set-Content -Encoding utf8 .build\download_models.py
+          python .build\download_models.py
+      - name: Build portable Windows app
+        shell: pwsh
+        run: |
+          python -m PyInstaller --noconfirm --clean --onedir --windowed --name QuickTranslator `
+            --collect-all argostranslate --collect-all ctranslate2 --collect-all sentencepiece `
+            --collect-all stanza --collect-all spacy --collect-all onnxruntime `
+            translator.pyw
+          Copy-Item launch.vbs,install.ps1,uninstall.ps1,README.md,THIRD-PARTY-NOTICES.md dist\QuickTranslator\
+          Compress-Archive -Path dist\QuickTranslator -DestinationPath dist\QuickTranslator-Windows-x64.zip
+          Get-FileHash dist\QuickTranslator-Windows-x64.zip -Algorithm SHA256 | Format-List | Out-File dist\SHA256.txt
+      - name: Smoke test packaged executable
+        shell: pwsh
+        run: |
+          $env:ARGOS_PACKAGES_DIR = "$PWD\.build\argos_models"
+          & dist\QuickTranslator\QuickTranslator.exe --self-test
+          if ($LASTEXITCODE -ne 0) { throw 'Packaged offline model smoke test failed' }
+      - name: Publish GitHub release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: |
+            dist/QuickTranslator-Windows-x64.zip
+            dist/SHA256.txt
