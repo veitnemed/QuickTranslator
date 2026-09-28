@@ -385,6 +385,10 @@ def main():
                 if not result:
                     raise RuntimeError(f'Model {source}->{target} returned an empty translation')
                 print(f'PASS {source}->{target}: {result}')
+        except Exception:
+            import traceback
+            traceback.print_exc()
+            return 1
         finally:
             if log_path:
                 log.close()

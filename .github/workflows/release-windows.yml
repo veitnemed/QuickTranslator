@@ -56,8 +56,9 @@ jobs:
           $env:ARGOS_PACKAGES_DIR = "$PWD\.build\argos_models"
           $env:QUICKTRANSLATOR_SELF_TEST_LOG = "$PWD\.build\self-test.log"
           & dist\QuickTranslator\QuickTranslator.exe --self-test
-          if ($LASTEXITCODE -ne 0) { throw 'Packaged offline model smoke test failed' }
+          $testExitCode = $LASTEXITCODE
           Get-Content $env:QUICKTRANSLATOR_SELF_TEST_LOG
+          if ($testExitCode -ne 0) { throw "Packaged offline model smoke test failed with exit code $testExitCode" }
       - name: Publish GitHub release
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
