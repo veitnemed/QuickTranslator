@@ -6,6 +6,15 @@ import logging
 from pathlib import Path
 from collections import OrderedDict
 
+SELF_TEST_LOG = None
+if '--self-test' in sys.argv:
+    test_log_path = os.environ.get('QUICKTRANSLATOR_SELF_TEST_LOG')
+    if test_log_path:
+        SELF_TEST_LOG = open(test_log_path, 'w', encoding='utf-8')
+        sys.stdout = SELF_TEST_LOG
+        sys.stderr = SELF_TEST_LOG
+        print('BOOTSTRAP: beginning packaged imports', flush=True)
+
 from PySide6.QtCore import QObject, Signal, Slot, QThread, QTimer, Qt
 from PySide6.QtCore import QSettings
 from PySide6.QtGui import QFont, QKeySequence, QShortcut, QIcon, QPixmap, QPainter, QColor
@@ -368,11 +377,6 @@ class Window(QMainWindow):
 
 def main():
     if '--self-test' in sys.argv:
-        log_path = os.environ.get('QUICKTRANSLATOR_SELF_TEST_LOG')
-        if log_path:
-            log = open(log_path, 'w', encoding='utf-8')
-            sys.stdout = log
-            sys.stderr = log
         try:
             import argostranslate.translate as translate
             languages = {x.code: x for x in translate.get_installed_languages()}
@@ -384,14 +388,14 @@ def main():
                 result = model.translate(sample)
                 if not result:
                     raise RuntimeError(f'Model {source}->{target} returned an empty translation')
-                print(f'PASS {source}->{target}: {result}')
+                print(f'PASS {source}->{target}: {result}', flush=True)
         except Exception:
             import traceback
             traceback.print_exc()
             return 1
         finally:
-            if log_path:
-                log.close()
+            if SELF_TEST_LOG:
+                SELF_TEST_LOG.close()
         return 0
     app = QApplication(sys.argv)
     app.setQuitOnLastWindowClosed(False)
